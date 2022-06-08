@@ -1,0 +1,108 @@
+version: "3"
+
+vars:
+  GREETING: Hello, Bhojpur Quantum Developer!
+
+tasks:
+    default:
+        cmds:
+        - echo "{{.GREETING}}"
+        silent: true
+
+    build-library:
+        desc: Build the Bhojpur Quantum software shared libraries
+        cmds:
+        - GOFLAGS=-mod=mod go build -o libs/quantum.so -buildmode=c-shared ./library.go 
+
+    build-tools:
+        desc: Build the Bhojpur Quantum software build tools
+        cmds:
+        - GOFLAGS=-mod=mod go build -o dist/quantumctl ./cmd/client/main.go 
+        - chmod 755 dist/quantumctl
+        - cp dist/quantumctl $GOPATH/bin
+        - GOFLAGS=-mod=mod go build -o dist/quantumsvr ./cmd/server/main.go 
+        - chmod 755 dist/quantumsvr
+        - cp dist/quantumsvr $GOPATH/bin
+
+    build-web:
+        desc: Build the Bhojpur Quantum web applications
+        cmds:
+        - pyinstaller --onefile ./files/usr/local/bin/quantum.py
+
+    build-desktop:
+        desc: Build the desktop application for current OS
+        cmds:
+        - guiutl package -name "Bhojpur Quantum" -os macos -icon quantum.png
+        - guiutl package -name "Bhojpur Quantum" -os linux -icon quantum.png
+        - guiutl package -name "Bhojpur Quantum" -os windows -icon quantum.png
+
+    package-android:
+        desc: Package the mobile application for Android
+        cmds:
+        - guiutl package -name "Bhojpur Quantum" -os android -appID net.bhojpur.quantum -icon quantum.png
+
+    package-ios:
+        desc: Package the mobile application for iOS
+        cmds:
+        - guiutl package -name "Bhojpur Quantum" -os ios -appID net.bhojpur.quantum -icon quantum.png
+
+    release-macos:
+        desc: Release the native application for macOS App Store
+        cmds:
+        - guiutl release -appID net.bhojpur.quantum -appVersion 1.0 -appBuild 1 -category business
+
+    release-android:
+        desc: Release the mobile application for Google Play
+        cmds:
+        - guiutl release -os android -appID net.bhojpur.quantum -appVersion 1.0 -appBuild 1
+
+    release-ios:
+        desc: Release the mobile application for iOS App Store
+        cmds:
+        - guiutl release -os ios -appID net.bhojpur.quantum -appVersion 1.0 -appBuild 1
+
+    run-web-server:
+        desc: Run the web server application from source code
+        cmds:
+        - GOFLAGS=-mod=mod go run server.go
+ 
+    run-web-client:
+        desc: Run the web client application from source code
+        cmds:
+        - GOFLAGS=-mod=mod go run client.go
+
+    run-mobile:
+        desc: Run the mobile client application on emulator
+        cmds:
+        - GOFLAGS=-mod=mod go run -tags mobile native/main.go
+
+    run-desktop: 
+        desc: Run the desktop application on local host
+        cmds:
+        - GOFLAGS=-mod=mod go run native/main.go
+
+    generate:
+        desc: Generate Go source code from Protocol Buffers
+        cmds:
+        - protoc --proto_path=. --proto_path=$GOPATH/src/github.com/gogo/protobuf --go_out=./pkg/api --go_opt=module=github.com/bhojpur/quantum/pkg/api pkg/api/v1/server/stt.proto
+        - protoc --proto_path=. --proto_path=$GOPATH/src/github.com/gogo/protobuf --go-grpc_out=./pkg/api --go-grpc_opt=module=github.com/bhojpur/quantum/pkg/api pkg/api/v1/server/stt.proto
+
+    test:
+        desc: Execute all the Unit Tests
+        cmds:
+        - gotestsum --junitfile test-results/unit-tests.xml -- -short -race -cover -coverprofile test-results/cover.out ./...
+
+    swagger.gen:
+        desc: Generate Go code
+        cmds:
+        - GOFLAGS=-mod=mod go generate bhojpur.net/quantum/internal bhojpur.net/quantum/pkg/swagger
+
+    swagger.validate:
+        desc: Validate all the Swagger API specifications
+        cmds:
+        - swagger validate pkg/swagger/swagger.yml
+
+    swagger.doc:
+        desc: Generate documentation for Swagger specified APIs
+        cmds:
+        - docker run -i yousan/swagger-yaml-to-html < pkg/swagger/swagger.yml > doc/index.html

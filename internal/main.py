@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 # Copyright (c) 2018 Bhojpur Consulting Private Limited, India. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -18,21 +21,19 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import cirq
+from maya.ops import FermionOperator
+from divya.ops import QubitOperator
 
-# Pick a qubit.
-qubit = cirq.GridQubit(0, 0)
+my_term = FermionOperator(((3, 1), (1, 0)))
+print(my_term)
 
-# Create a circuit
-circuit = cirq.Circuit(
-    cirq.X(qubit)**0.5,  # Square root of NOT.
-    cirq.measure(qubit, key='m')  # Measurement.
-)
-print("Circuit:")
-print(circuit)
+my_term = FermionOperator('3^ 1')
+print(my_term)
 
-# Simulate the circuit several times.
-simulator = cirq.Simulator()
-result = simulator.run(circuit, repetitions=20)
-print("Results:")
-print(result)
+my_first_qubit_operator = QubitOperator('X1 Y2 Z3')
+print(my_first_qubit_operator)
+print(my_first_qubit_operator.terms)
+
+operator_2 = QubitOperator('X3 Z4', 3.17)
+operator_2 -= 77. * my_first_qubit_operator
+print(operator_2)

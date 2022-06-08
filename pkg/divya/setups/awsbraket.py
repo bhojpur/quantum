@@ -1,0 +1,95 @@
+# -*- coding: utf-8 -*-
+
+# Copyright (c) 2018 Bhojpur Consulting Private Limited, India. All rights reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
+"""
+A setup for AWS Braket devices.
+
+Defines a setup allowing to compile code for the AWS Braket devices:
+->The 11 qubits IonQ device
+->The 32 qubits Rigetti device
+->The up to 34 qubits SV1 state vector simulator
+
+It provides the `engine_list` for the `MainEngine' based on the requested
+device.  Decompose the circuit into the available gate set for each device
+that will be used in the backend.
+"""
+
+from divya.backends._awsbraket._awsbraket_boto3_client import show_devices
+from divya.backends._exceptions import DeviceNotHandledError, DeviceOfflineError
+from divya.ops import (
+    Barrier,
+    H,
+    R,
+    Rx,
+    Ry,
+    Rz,
+    S,
+    Sdag,
+    SqrtX,
+    Swap,
+    T,
+    Tdag,
+    X,
+    Y,
+    Z,
+)
+from divya.setups import restrictedgateset
+
+def get_engine_list(credentials=None, device=None):
+    """Return the default list of compiler engine for the AWS Braket platform."""
+    # Access to the hardware properties via show_devices
+    # Can also be extended to take into account gate fidelities, new available
+    # gate, etc..
+    devices = show_devices(credentials)
+    if device not in devices:
+        raise DeviceOfflineError('Error when configuring engine list: device requested for Backend not available')
+
+    # We left the real device to manage the mapping and optimizacion: "The IonQ
+    # and Rigetti devices compile the provided circuit into their respective
+    # native gate sets automatically, and they map the abstract qubit indices
+    # to physical qubits on the respective QPU."
+    # (see: https://docs.aws.amazon.com/braket/latest/developerguide/braket-submit-to-qpu.html)
+
+    # TODO: Investigate if explicit mapping is an advantage
+
+    if device == 'SV1':
+        setup = restrictedgateset.get_engine_list(
+            one_qubit_gates=(R, H, Rx, Ry, Rz, S, Sdag, T, Tdag, X, Y, Z, SqrtX),
+            two_qubit_gates=(Swap,),
+            other_gates=(Barrier,),
+        )
+        return setup
+    if device == 'Aspen-8':
+        setup = restrictedgateset.get_engine_list(
+            one_qubit_gates=(R, H, Rx, Ry, Rz, S, Sdag, T, Tdag, X, Y, Z),
+            two_qubit_gates=(Swap,),
+            other_gates=(Barrier,),
+        )
+        return setup
+    if device == 'IonQ Device':
+        setup = restrictedgateset.get_engine_list(
+            one_qubit_gates=(H, Rx, Ry, Rz, S, Sdag, T, Tdag, X, Y, Z, SqrtX),
+            two_qubit_gates=(Swap,),
+            other_gates=(Barrier,),
+        )
+        return setup
+    raise DeviceNotHandledError('Unsupported device type: {}!'.format(device))  # pragma: no cover
